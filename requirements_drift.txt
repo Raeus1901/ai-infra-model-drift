@@ -1,0 +1,36 @@
+# Drift detection
+numpy>=1.26.0
+pandas>=2.1.0
+matplotlib>=3.8.0
+seaborn>=0.13.0
+
+# Data sources
+yfinance>=0.2.40
+pandas-datareader>=0.10.0
+requests>=2.31.0
+
+# Time series & stats
+statsmodels>=0.14.0
+pmdarima>=2.0.4
+scipy>=1.11.0
+
+# ML / boosting
+xgboost>=2.0.0
+scikit-learn>=1.3.0
+optuna>=3.5.0
+
+# Deep learning (M1 MPS support)
+torch>=2.2.0
+
+# NLP
+transformers>=4.35.0
+tokenizers>=0.15.0
+
+# Explainability
+shap>=0.44.0
+
+# Drift detection
+river>=0.21.0
+
+# Storage
+pyarrow>=14.0.0

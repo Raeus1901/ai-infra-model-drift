@@ -1,0 +1,38 @@
+# Secrets
+.env
+.env.*
+*.key
+*.pem
+
+# Fichiers avec clés en dur — ne jamais commiter
+OpenAI-API.py
+
+# Données générées / gros fichiers
+cache/
+output/
+figures/
+*.parquet
+*.arrow
+*.pkl
+*.h5
+
+# Environnement Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# IDE
+.idea/
+*.DS_Store
+
+# Sous-projets indépendants (repos git séparés)
+columbia-qmss-coursework/
+final-fight-clone/
+finbert-sarimax-energy-forecasting/
+wine/
+wine_bot/
+
+# Notebook vide
+notebook.ipynb
