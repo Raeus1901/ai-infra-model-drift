@@ -60,6 +60,10 @@ from river.drift import PageHinkley
 warnings.filterwarnings('ignore')
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
+# Config secrets — chargés depuis .env (jamais commité)
+from dotenv import load_dotenv
+load_dotenv()
+
 # On demande la variable nommée 'FINNHUB_API_KEY'
 FINNHUB_API_KEY = os.getenv('FINNHUB_API_KEY')
 
@@ -408,7 +412,8 @@ class FinBERTAnalyzer:
 import requests, re, json
 
 EDGAR_HEADERS = {
-    "User-Agent": "jean.treves@gmail.com",   # ← mets ton vrai email
+    # SEC exige un User-Agent identifiant — définir EDGAR_USER_AGENT dans .env
+    "User-Agent": os.getenv("EDGAR_USER_AGENT", "research-bot contact@example.com"),
     "Accept-Encoding": "gzip, deflate",
 }
 

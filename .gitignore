@@ -7,10 +7,10 @@
 # Fichiers avec clés en dur — ne jamais commiter
 OpenAI-API.py
 
-# Données générées / gros fichiers
+# Données générées / gros fichiers (figures/ et results/ restent trackés)
 cache/
 output/
-figures/
+*.log
 *.parquet
 *.arrow
 *.pkl
