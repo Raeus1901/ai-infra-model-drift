@@ -29,6 +29,9 @@ A master's thesis on FinBERT + SARIMAX forecasting observed a sentiment→return
 | XGBoost | 15.1 | 26.1 | **21.3** | 54.8 |
 | LSTM | 77.9 | 213.7 | 223.0 | 350.4 |
 
+![Model × regime RMSE](figures/fig5_regime_performance.png)
+![SHAP drift across regimes](figures/fig4_shap_drift.png)
+
 Every model degrades ~4× from R1 to R4; SARIMAX stays the most robust overall. In R3 (rate hikes) XGBoost edges SARIMAX by ~3% (13.69 vs 14.15 rolling RMSE) — effectively tied; both vastly outperform LSTM. Note: `figures/fig5_regime_performance.png` reports the 90-day **rolling** RMSE averaged per regime — a smoothed metric with lower absolute values, but the same model ordering in every regime.
 
 ## How to run
