@@ -21,7 +21,7 @@ A master's thesis on FinBERT + SARIMAX forecasting observed a sentiment→return
 
 **SHAP regime trajectory.** Mean |SHAP| of the SOXX semiconductor index across the 10 tickers grows monotonically: **0.07 (R1) → 3.30 (R2) → 5.90 (R3) → 10.12 (R4)** — by the AI boom, sector beta dominates every model's predictions. Top-3 features shift from {botz, soxx, baa_spread} in R1 to {soxx, yield_curve, botz} in R4.
 
-**Model × regime RMSE** (price units, pooled across tickers — comparable across regimes within a model):
+**Per-regime RMSE (raw, from `predictions.parquet`)** — price units, pooled across tickers; comparable across regimes within a model:
 
 | Model | R1 baseline | R2 COVID/ZIRP | R3 rate hikes | R4 AI boom |
 |---|---|---|---|---|
@@ -29,7 +29,7 @@ A master's thesis on FinBERT + SARIMAX forecasting observed a sentiment→return
 | XGBoost | 15.1 | 26.1 | **21.3** | 54.8 |
 | LSTM | 77.9 | 213.7 | 223.0 | 350.4 |
 
-Every model degrades ~4× from R1 to R4; SARIMAX stays the most robust overall, XGBoost wins only in the rate-hike regime.
+Every model degrades ~4× from R1 to R4; SARIMAX stays the most robust overall. In R3 (rate hikes) XGBoost edges SARIMAX by ~3% (13.69 vs 14.15 rolling RMSE) — effectively tied; both vastly outperform LSTM. Note: `figures/fig5_regime_performance.png` reports the 90-day **rolling** RMSE averaged per regime — a smoothed metric with lower absolute values, but the same model ordering in every regime.
 
 ## How to run
 
@@ -41,7 +41,7 @@ pip install -r requirements.txt
 #   FINNHUB_API_KEY=...                            # optional, not required (earnings text comes from SEC EDGAR)
 
 python drift_pipeline.py   # full pipeline: fetch → models → drift → figures (~45 min)
-python script2.py          # light pass: SHAP + visualisations only (requires populated cache/)
+python run_shap_and_viz.py # light pass: SHAP + visualisations only (requires populated cache/)
 ```
 
 Outputs land in `output/` (gitignored); curated copies are committed under `results/` and `figures/`.

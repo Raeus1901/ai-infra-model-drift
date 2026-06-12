@@ -14,7 +14,7 @@ Période : 2014-01-01 → 2026-05-01 · 4 régimes macro.
 | Couche | Librairies |
 |--------|------------|
 | Data | pandas, numpy, yfinance, pandas-datareader |
-| Stats / TS | statsmodels (SARIMAX), scipy, pmdarima |
+| Stats / TS | statsmodels (SARIMAX), scipy |
 | ML | xgboost, optuna, scikit-learn, river |
 | Deep Learning | torch (MPS → CPU fallback), transformers (FinBERT) |
 | Explainability | shap |
@@ -31,10 +31,10 @@ source .venv/bin/activate
 python drift_pipeline.py
 
 # Pipeline léger : SHAP + visualisations seulement (requiert cache/ peuplé)
-python script2.py
+python run_shap_and_viz.py
 
 # Installer les dépendances
-pip install -r requirements_drift.txt
+pip install -r requirements.txt
 
 # Formater / linter
 ruff format .

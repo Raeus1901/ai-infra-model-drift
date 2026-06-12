@@ -71,6 +71,19 @@ log = logging.getLogger(__name__)
 # UTILS
 # ======================================================================
 def assign_regime(date: pd.Timestamp) -> str:
+    """
+    Map a date to its macro regime window.
+
+    Parameters
+    ----------
+    date : pd.Timestamp
+        Date to classify.
+
+    Returns
+    -------
+    str
+        Regime key (e.g. 'R1_baseline'), or 'unknown' if outside all windows.
+    """
     for name, (start, end) in CFG.regimes.items():
         if pd.Timestamp(start) <= date <= pd.Timestamp(end):
             return name
@@ -78,6 +91,21 @@ def assign_regime(date: pd.Timestamp) -> str:
 
 
 def attach_sentiment_to_panel(master: pd.DataFrame, sentiment: pd.DataFrame) -> pd.DataFrame:
+    """
+    Merge event-level FinBERT sentiment onto the daily panel (backward as-of, per ticker).
+
+    Parameters
+    ----------
+    master : pd.DataFrame
+        Daily panel with 'date' and 'ticker' columns.
+    sentiment : pd.DataFrame
+        Event-level scores with 'date', 'ticker', 'sentiment_score' columns.
+
+    Returns
+    -------
+    pd.DataFrame
+        Master panel with a 'sentiment_score' column (0.0 where no event is available).
+    """
     if sentiment.empty:
         master['sentiment_score'] = 0.0
         return master
@@ -103,6 +131,18 @@ def attach_sentiment_to_panel(master: pd.DataFrame, sentiment: pd.DataFrame) -> 
 # LOAD CACHED DATA
 # ======================================================================
 def load_master_with_sentiment() -> pd.DataFrame:
+    """
+    Load the cached master dataset and attach the cached sentiment panel if present.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    pd.DataFrame
+        Master panel with a 'sentiment_score' column (zeros if no sentiment cache).
+    """
     log.info('Loading cached master dataset...')
     master_path = CFG.cache_dir / 'master_dataset.parquet'
     if not master_path.exists():
@@ -122,6 +162,18 @@ def load_master_with_sentiment() -> pd.DataFrame:
 
 
 def load_predictions() -> pd.DataFrame:
+    """
+    Load cached walk-forward predictions from output/predictions.parquet.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    pd.DataFrame
+        Long format: 'date', 'ticker', 'actual', 'predicted', 'model'.
+    """
     pred_path = CFG.output_dir / 'predictions.parquet'
     if not pred_path.exists():
         raise FileNotFoundError(f'Missing {pred_path}. Run walk-forward in drift_pipeline.py first.')
@@ -133,6 +185,23 @@ def load_predictions() -> pd.DataFrame:
 # DRIFT METRICS (rapide)
 # ======================================================================
 def compute_psi(expected: np.ndarray, actual: np.ndarray, bins: int = 10) -> float:
+    """
+    Population Stability Index between a baseline sample and a comparison sample.
+
+    Parameters
+    ----------
+    expected : np.ndarray
+        Baseline sample defining the quantile buckets.
+    actual : np.ndarray
+        Comparison sample.
+    bins : int, optional
+        Number of quantile buckets, by default 10.
+
+    Returns
+    -------
+    float
+        PSI value (rule of thumb: > 0.25 indicates a significant shift).
+    """
     breakpoints = np.quantile(expected, np.linspace(0, 1, bins + 1))
     breakpoints[0], breakpoints[-1] = -np.inf, np.inf
     e, _ = np.histogram(expected, bins=breakpoints)
@@ -143,6 +212,22 @@ def compute_psi(expected: np.ndarray, actual: np.ndarray, bins: int = 10) -> flo
 
 
 def drift_panel_by_regime(df: pd.DataFrame, feature: str) -> pd.DataFrame:
+    """
+    Compute PSI and KS-test for one feature, each regime vs the R1 baseline.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Panel with a 'date' column and the feature column.
+    feature : str
+        Feature column to test.
+
+    Returns
+    -------
+    pd.DataFrame
+        One row per non-baseline regime: 'feature', 'regime', 'psi',
+        'ks_stat', 'ks_p', 'n_baseline', 'n_actual'.
+    """
     df = df.copy()
     df['regime'] = df['date'].apply(assign_regime)
     baseline_name = list(CFG.regimes.keys())[0]
@@ -163,6 +248,21 @@ def drift_panel_by_regime(df: pd.DataFrame, feature: str) -> pd.DataFrame:
 
 
 def rolling_rmse(predictions: pd.DataFrame, window: int = 90) -> pd.DataFrame:
+    """
+    Rolling RMSE of predictions per (model, ticker) pair.
+
+    Parameters
+    ----------
+    predictions : pd.DataFrame
+        Walk-forward predictions ('date', 'ticker', 'actual', 'predicted', 'model').
+    window : int, optional
+        Rolling window length in observations, by default 90.
+
+    Returns
+    -------
+    pd.DataFrame
+        Long format: 'date', 'ticker', 'model', 'rolling_rmse'.
+    """
     out = []
     for (m, t), g in predictions.groupby(['model', 'ticker']):
         g = g.sort_values('date').reset_index(drop=True)
@@ -179,6 +279,26 @@ def rolling_rmse(predictions: pd.DataFrame, window: int = 90) -> pd.DataFrame:
 # ======================================================================
 def compute_shap_by_regime(df: pd.DataFrame, ticker: str,
                            features: List[str], target: str = 'Close') -> pd.DataFrame:
+    """
+    Mean |SHAP| importance per feature for one ticker, fitted separately per regime.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Master panel with 'date', 'ticker', feature and target columns.
+    ticker : str
+        Ticker to analyse.
+    features : List[str]
+        Feature column names.
+    target : str, optional
+        Target column, by default 'Close'.
+
+    Returns
+    -------
+    pd.DataFrame
+        Rows: 'ticker', 'regime', 'feature', 'shap_importance', 'method'
+        ('shap', or 'permutation' when the SHAP explainer fails).
+    """
     df = df.copy()
     df['regime'] = df['date'].apply(assign_regime)
     sub = df[df['ticker'] == ticker].dropna(subset=features + [target])
@@ -223,6 +343,22 @@ def compute_shap_by_regime(df: pd.DataFrame, ticker: str,
 # VIZ
 # ======================================================================
 def plot_distribution_shift(df: pd.DataFrame, feature: str, save_as: str):
+    """
+    KDE plot of a feature's distribution per regime, saved as PNG.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Panel with a 'date' column and the feature column.
+    feature : str
+        Column to plot.
+    save_as : str
+        Output filename inside CFG.figures_dir.
+
+    Returns
+    -------
+    None
+    """
     df = df.copy()
     df['regime'] = df['date'].apply(assign_regime)
     fig, ax = plt.subplots(figsize=(10, 5))
@@ -240,6 +376,20 @@ def plot_distribution_shift(df: pd.DataFrame, feature: str, save_as: str):
 
 
 def plot_rolling_rmse(rmse_df: pd.DataFrame, save_as: str):
+    """
+    Time series of rolling RMSE averaged across tickers, with regime shading, saved as PNG.
+
+    Parameters
+    ----------
+    rmse_df : pd.DataFrame
+        Output of rolling_rmse() ('date', 'ticker', 'model', 'rolling_rmse').
+    save_as : str
+        Output filename inside CFG.figures_dir.
+
+    Returns
+    -------
+    None
+    """
     avg = rmse_df.groupby(['date', 'model'])['rolling_rmse'].mean().reset_index()
     fig, ax = plt.subplots(figsize=(12, 5))
     for model in avg['model'].unique():
@@ -256,6 +406,20 @@ def plot_rolling_rmse(rmse_df: pd.DataFrame, save_as: str):
 
 
 def plot_shap_drift_heatmap(shap_df: pd.DataFrame, save_as: str):
+    """
+    Heatmap of mean |SHAP| per feature x regime, saved as PNG.
+
+    Parameters
+    ----------
+    shap_df : pd.DataFrame
+        Output of compute_shap_by_regime() stacked over tickers.
+    save_as : str
+        Output filename inside CFG.figures_dir.
+
+    Returns
+    -------
+    None
+    """
     pivot = shap_df.groupby(['feature', 'regime'])['shap_importance'].mean().unstack()
     cols = [c for c in CFG.regimes.keys() if c in pivot.columns]
     pivot = pivot[cols]
@@ -269,6 +433,20 @@ def plot_shap_drift_heatmap(shap_df: pd.DataFrame, save_as: str):
 
 
 def plot_regime_performance_heatmap(rmse_df: pd.DataFrame, save_as: str):
+    """
+    Heatmap of mean rolling RMSE per model x regime, saved as PNG.
+
+    Parameters
+    ----------
+    rmse_df : pd.DataFrame
+        Output of rolling_rmse() ('date', 'ticker', 'model', 'rolling_rmse').
+    save_as : str
+        Output filename inside CFG.figures_dir.
+
+    Returns
+    -------
+    None
+    """
     df = rmse_df.copy()
     df['regime'] = df['date'].apply(assign_regime)
     pivot = df.groupby(['model', 'regime'])['rolling_rmse'].mean().unstack()
@@ -287,6 +465,17 @@ def plot_regime_performance_heatmap(rmse_df: pd.DataFrame, save_as: str):
 # MAIN
 # ======================================================================
 def main():
+    """
+    Run the light pipeline: load caches, drift metrics, rolling RMSE, SHAP, figures.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
+    """
     log.info('=' * 70)
     log.info('SHAP + VIZ ONLY - using cached predictions')
     log.info('=' * 70)
