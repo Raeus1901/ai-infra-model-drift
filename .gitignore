@@ -36,3 +36,5 @@ wine_bot/
 
 # Notebook vide
 notebook.ipynb
+
+.claude/
